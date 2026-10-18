@@ -43,9 +43,8 @@ export async function POST(request: Request) {
   }
 
   const password = process.env.APP_PASSWORD;
-  const local = process.env.NODE_ENV === "development";
-  // A remotely deployed, paid generation endpoint must have an access boundary.
-  if (!local && !password)
+  // Every paid generation request needs the shared password, including locally.
+  if (!password)
     return json(
       {
         error:

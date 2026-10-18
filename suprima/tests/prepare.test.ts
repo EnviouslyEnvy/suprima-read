@@ -27,8 +27,8 @@ beforeEach(() => {
   Object.assign(process.env, {
     NODE_ENV: "development",
     OPENAI_API_KEY: "test-only-key",
+    APP_PASSWORD: "test-workspace-password",
   });
-  delete process.env.APP_PASSWORD;
   globalThis.fetch = async () => {
     throw new Error("Unexpected provider request");
   };
@@ -49,6 +49,7 @@ function request(
     headers: {
       "content-type": "application/json",
       host: "127.0.0.1:3000",
+      "x-app-password": "test-workspace-password",
       ...headers,
     },
     body: JSON.stringify(body),
@@ -98,24 +99,33 @@ test("same-origin preparation works with an internal Next.js hostname and uses n
   assert.equal(typeof payload?.instructions, "string");
 });
 
-test("production requires a password even if a caller claims to be localhost", async () => {
-  Object.assign(process.env, { NODE_ENV: "production" });
-  assert.equal((await POST(request())).status, 503);
-  process.env.APP_PASSWORD = "test-workspace-password";
-  assert.equal((await POST(request())).status, 401);
-  assert.equal(
-    (await POST(request(undefined, { "x-app-password": "wrong" }))).status,
-    401,
-  );
-  globalThis.fetch = async () => success();
-  assert.equal(
-    (
-      await POST(
-        request(undefined, { "x-app-password": "test-workspace-password" }),
-      )
-    ).status,
-    200,
-  );
+test("password protection cannot be bypassed in development or production", async () => {
+  let providerCalls = 0;
+  globalThis.fetch = async () => {
+    providerCalls++;
+    return success();
+  };
+  for (const environment of ["development", "production"]) {
+    Object.assign(process.env, { NODE_ENV: environment });
+    delete process.env.APP_PASSWORD;
+    const initialCalls = providerCalls;
+    assert.equal((await POST(request())).status, 503);
+    process.env.APP_PASSWORD = "test-workspace-password";
+    const missing = await POST(request(undefined, { "x-app-password": "" }));
+    assert.equal(missing.status, 401);
+    assert.equal((await missing.json()).needsPassword, true);
+    assert.equal(
+      (await POST(request(undefined, { "x-app-password": "wrong" }))).status,
+      401,
+    );
+    assert.equal(
+      providerCalls,
+      initialCalls,
+      "Unauthorized requests must never reach the paid provider",
+    );
+    assert.equal((await POST(request())).status, 200);
+    assert.equal(providerCalls, initialCalls + 1);
+  }
 });
 
 test("invalid source references and incomplete outputs are rejected", async () => {

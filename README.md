@@ -60,13 +60,15 @@ This is a standard Next.js app with standalone Node.js output. This GitHub repos
 
 Use `suprima` as the application root when connecting a hosting service. Set these environment variables on the server:
 
-| Variable         | Purpose                                             |
-| ---------------- | --------------------------------------------------- |
-| `OPENAI_API_KEY` | Server-side AI provider credential                  |
-| `OPENAI_MODEL`   | Optional compatible model override                  |
-| `APP_PASSWORD`   | Required in production to enable paid AI generation |
+| Variable         | Purpose                                       |
+| ---------------- | --------------------------------------------- |
+| `OPENAI_API_KEY` | Server-side AI provider credential            |
+| `OPENAI_MODEL`   | Optional compatible model override            |
+| `APP_PASSWORD`   | Required for every paid AI generation request |
 
-Production AI generation stays disabled until `APP_PASSWORD` is configured. The browser prompts for this password on the first preparation and keeps it in memory for that visit. The interface and original reader remain available without it. Use HTTPS for remote hosting.
+AI generation stays disabled until `APP_PASSWORD` is configured, including in local development. Choose a separate, strong password; do not use your API key as the password. The browser prompts for it on the first preparation and keeps it in memory until the tab is refreshed or closed. The server checks the password on every generation request before contacting the AI provider. Missing or incorrect passwords never reach the paid provider. The interface and original reader remain available without it. Use HTTPS for remote hosting.
+
+For Vercel, add `OPENAI_API_KEY` and `APP_PASSWORD` as server environment variables, then redeploy. Local `.env.local` values are not uploaded from GitHub. Changing the server's `APP_PASSWORD` and redeploying invalidates the previous password. This password protects requests through this app; it does not change how the API key works outside the app.
 
 The endpoint checks request origin and size, validates input and output, applies an 80-second timeout, and permits two simultaneous generations per server process. The concurrency limit is not a distributed quota or a substitute for host-level rate limiting. Before opening access broadly, add user authentication and durable usage limits appropriate to that deployment.
 
