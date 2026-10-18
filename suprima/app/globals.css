@@ -2162,8 +2162,7 @@ kbd {
 .sidebar-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  min-height: 30px;
 }
 .sidebar .brand {
   font-size: 24px;
@@ -2185,33 +2184,45 @@ kbd {
     grid-template-columns: 68px minmax(0, 1fr);
   }
   .sidebar-collapsed .sidebar {
+    align-items: center;
     padding-left: 12px;
     padding-right: 12px;
   }
   .sidebar-collapsed .sidebar-head {
-    flex-direction: column;
-    gap: 16px;
+    justify-content: center;
+    width: 40px;
   }
   .sidebar-collapsed .brand-name,
   .sidebar-collapsed .nav-text,
-  .sidebar-collapsed .nav-label,
   .sidebar-collapsed .nav-count {
     display: none;
+  }
+  .sidebar-collapsed .nav-label {
+    visibility: hidden;
+    width: 40px;
+    overflow: hidden;
+    margin-left: 0;
+    margin-right: 0;
   }
   .sidebar-collapsed .brand-mark {
     margin: 0;
   }
-  .sidebar-collapsed .new-reading {
-    margin-top: 24px;
-  }
   .sidebar-collapsed nav {
-    margin-top: 18px;
+    width: 40px;
+  }
+  .sidebar-collapsed .sidebar-bottom {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
   .sidebar-collapsed .new-reading,
   .sidebar-collapsed .nav-item {
+    width: 40px;
+    height: 40px;
+    flex: none;
     justify-content: center;
-    padding-left: 0;
-    padding-right: 0;
+    padding: 0;
   }
 }
 

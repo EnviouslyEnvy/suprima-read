@@ -37,19 +37,6 @@ export default function Sidebar({
     <aside className="sidebar" aria-label="Sidebar">
       <div className="sidebar-head">
         <Brand href="/" />
-        <button
-          className="icon-button sidebar-toggle"
-          onClick={onToggle}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-expanded={!isCollapsed}
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isCollapsed ? (
-            <PanelLeftOpen size={18} />
-          ) : (
-            <PanelLeftClose size={18} />
-          )}
-        </button>
       </div>
       <button
         className="new-reading"
@@ -98,6 +85,22 @@ export default function Sidebar({
           <House size={18} />
           <span className="nav-text">Home</span>
         </Link>
+        <button
+          className="nav-item sidebar-toggle"
+          onClick={onToggle}
+          aria-label={label(isCollapsed ? "Expand sidebar" : "Collapse sidebar")}
+          aria-expanded={!isCollapsed}
+          title={label(isCollapsed ? "Expand sidebar" : "Collapse sidebar")}
+        >
+          {isCollapsed ? (
+            <PanelLeftOpen size={18} />
+          ) : (
+            <PanelLeftClose size={18} />
+          )}
+          <span className="nav-text">
+            {isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          </span>
+        </button>
       </div>
     </aside>
   );
