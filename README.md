@@ -84,8 +84,11 @@ Keep the production env file outside the repository. The Docker build excludes l
 ## Project layout
 
 - `suprima/app/api/prepare/route.ts` — AI generation and server safeguards.
-- `suprima/components/workspace.tsx` — text preparation, source review, and browser library.
-- `suprima/components/reader.tsx` — playback, focus view, and controls.
+- `suprima/components/home.tsx` — landing page (`/`) with a live demo of the full flow.
+- `suprima/components/workspace.tsx` — the app (`/workspace`): collapsible sidebar, editor, depth, reader, and library.
+- `suprima/components/use-reading.ts` — shared reading state: text, brief, preparation, and playback settings.
+- `suprima/components/reader.tsx` — playback, the full-screen focus view, and controls.
+- `suprima/lib/library.ts` — browser storage for the library, sidebar state, and the home-to-workspace handoff.
 - `suprima/lib/reading.ts` — tokenization, pacing, and sentence navigation.
 - `suprima/tests/` — reading behavior tests.
 

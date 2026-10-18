@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft,
+  Bookmark,
   Check,
+  ChevronDown,
   Expand,
   Pause,
   Play,
@@ -16,49 +17,325 @@ import {
   focusParts,
   formatTime,
   sentencePosition,
-  tokenize,
   wordDelay,
-  type Brief,
 } from "@/lib/reading";
+import type { Reading } from "./use-reading";
 
-type Props = {
-  brief: Brief | null;
-  kind: "example" | "ai" | "original";
-  index: number;
-  setIndex: (value: number | ((value: number) => number)) => void;
-  playing: boolean;
-  setPlaying: (value: boolean) => void;
-  wpm: number;
-  setWpm: (value: number | ((value: number) => number)) => void;
-  smart: boolean;
-  setSmart: (value: boolean) => void;
-  focus: boolean;
-  setFocus: (value: boolean) => void;
-  modalOpen: boolean;
-};
+type Playback = ReturnType<typeof usePlayback>;
+type PartProps = { reading: Reading; playback: Playback };
 
 export default function Reader({
-  brief,
-  kind,
-  index,
-  setIndex,
-  playing,
-  setPlaying,
-  wpm,
-  setWpm,
-  smart,
-  setSmart,
-  focus,
-  setFocus,
+  reading,
   modalOpen,
-}: Props) {
-  const sectionRef = useRef<HTMLElement>(null);
-  const tokens = useMemo(() => tokenize(brief?.sections ?? []), [brief]);
+  isSaved = false,
+  onSave,
+}: {
+  reading: Reading;
+  modalOpen: boolean;
+  isSaved?: boolean;
+  onSave?: () => void;
+}) {
+  const playback = usePlayback(reading, modalOpen);
+  const { brief, tokens, focus } = reading;
+
+  return (
+    <>
+      <section className="reader-card" aria-label="One word reader">
+        <div className="reader-top">
+          <span className="eyebrow">
+            <span className="live-dot" />
+            THE FOCUS READER
+          </span>
+          <div className="reader-actions">
+            {onSave && brief && (
+              <button
+                className="icon-button light"
+                onClick={onSave}
+                aria-label="Save reading to library"
+                title="Save reading and current position"
+              >
+                <Bookmark size={17} fill={isSaved ? "currentColor" : "none"} />
+              </button>
+            )}
+            <button
+              className="focus-button"
+              disabled={!tokens.length}
+              onClick={() => reading.setFocus(true)}
+              title="Focus view (F)"
+            >
+              <Expand size={14} />
+              Focus
+            </button>
+          </div>
+        </div>
+        <SectionPicker reading={reading} playback={playback} />
+        <WordStage word={playback.token?.word} />
+        <div className="reader-caption" role="status">
+          {playback.done ? (
+            <>
+              <Check size={14} /> Reading complete. Let the ideas settle.
+            </>
+          ) : reading.playing ? (
+            "One word. One moment. Keep going."
+          ) : reading.kind === "example" && brief ? (
+            "A prepared example. Press play to try it."
+          ) : brief ? (
+            "Settle in. Start when you're ready."
+          ) : (
+            "Prepare a brief, or read the original, to begin."
+          )}
+        </div>
+        <div className="reader-body">
+          <PlaybackControls reading={reading} playback={playback} />
+          <ReadingProgress reading={reading} playback={playback} />
+          <ReaderSettings reading={reading} />
+          <div className="shortcut-hint">
+            <kbd>space</kbd> play / pause <span>·</span> <kbd>←</kbd>
+            <kbd>→</kbd> sentence <span>·</span> <kbd>f</kbd> focus
+          </div>
+        </div>
+      </section>
+      {focus && <FocusScreen reading={reading} playback={playback} />}
+    </>
+  );
+}
+
+function FocusScreen({ reading, playback }: PartProps) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const isIdle = useIdle(reading.playing);
+
+  useEffect(() => {
+    const dialog = ref.current;
+    const previous = document.activeElement as HTMLElement | null;
+    dialog?.showModal();
+    dialog?.querySelector<HTMLElement>(".play-button")?.focus();
+    return () => {
+      dialog?.close();
+      previous?.focus();
+    };
+  }, []);
+
+  return (
+    <dialog
+      ref={ref}
+      className={`focus-screen ${isIdle ? "is-idle" : ""}`}
+      aria-label="Focus reader"
+      onClose={() => {
+        if (!ref.current?.open) playback.exitFocus();
+      }}
+    >
+      <WordStage word={playback.token?.word} />
+      {playback.done && (
+        <p className="focus-done" role="status">
+          <Check size={15} /> Reading complete. Let the ideas settle.
+        </p>
+      )}
+      <header className="focus-chrome focus-header">
+        <SectionPicker reading={reading} playback={playback} />
+        <button className="focus-exit" onClick={playback.exitFocus}>
+          <X size={16} />
+          Exit
+          <kbd>esc</kbd>
+        </button>
+      </header>
+      <footer className="focus-chrome focus-footer">
+        <ReadingProgress reading={reading} playback={playback} />
+        <PlaybackControls reading={reading} playback={playback} />
+        <ReaderSettings reading={reading} />
+      </footer>
+    </dialog>
+  );
+}
+
+function SectionPicker({ reading, playback }: PartProps) {
+  const { brief } = reading;
+  if (!brief)
+    return (
+      <div className="reading-label">A little space for your next big idea</div>
+    );
+  const total = pad(brief.sections.length);
+
+  return (
+    <label className="reading-label section-picker">
+      <span className="sr-only">Jump to section</span>
+      <select
+        value={playback.section}
+        onChange={(e) => playback.jumpToSection(Number(e.target.value))}
+      >
+        {brief.sections.map((s, i) => (
+          <option key={i} value={i}>
+            {`${pad(i + 1)} / ${total} · ${s.heading}`}
+          </option>
+        ))}
+      </select>
+      <ChevronDown size={12} aria-hidden="true" />
+    </label>
+  );
+}
+
+function WordStage({ word }: { word?: string }) {
+  const { before, focus, after } = focusParts(word || "clarity");
+
+  return (
+    <div className="word-stage" aria-hidden="true">
+      <span className="anchor-notch top" />
+      <div
+        className={`reading-word ${word && [...word].length > 18 ? "is-long" : ""}`}
+      >
+        <span className="word-before">{before}</span>
+        <span className="word-pivot">{focus}</span>
+        <span className="word-after">{after}</span>
+      </div>
+      <span className="anchor-notch bottom" />
+    </div>
+  );
+}
+
+function PlaybackControls({ reading, playback }: PartProps) {
+  const { playing, tokens } = reading;
+  const isEmpty = !tokens.length;
+
+  return (
+    <div className="playback-controls">
+      <button
+        className="icon-button light"
+        aria-label="Restart reading"
+        title="Restart reading"
+        disabled={isEmpty}
+        onClick={playback.restart}
+      >
+        <RotateCcw size={17} />
+      </button>
+      <button
+        className="icon-button light"
+        aria-label="Previous sentence"
+        title="Previous sentence (←)"
+        disabled={isEmpty}
+        onClick={() => playback.seek(-1)}
+      >
+        <SkipBack size={20} />
+      </button>
+      <button
+        className="play-button"
+        aria-label={
+          playing
+            ? "Pause reading"
+            : playback.done
+              ? "Read again"
+              : "Play reading"
+        }
+        disabled={isEmpty}
+        onClick={playback.toggle}
+      >
+        {playing ? (
+          <Pause size={23} fill="currentColor" />
+        ) : (
+          <Play size={23} fill="currentColor" />
+        )}
+      </button>
+      <button
+        className="icon-button light"
+        aria-label="Next sentence"
+        title="Next sentence (→)"
+        disabled={isEmpty}
+        onClick={() => playback.seek(1)}
+      >
+        <SkipForward size={20} />
+      </button>
+      <span className="controls-spacer" />
+    </div>
+  );
+}
+
+function ReadingProgress({ reading, playback }: PartProps) {
+  const { tokens, index } = reading;
+  const { done, position } = playback;
+  const progress = tokens.length
+    ? done
+      ? 100
+      : (position / Math.max(1, tokens.length - 1)) * 100
+    : 0;
+
+  return (
+    <div className="reading-progress">
+      <input
+        aria-label="Reading position"
+        type="range"
+        min="0"
+        max={Math.max(1, tokens.length - 1)}
+        value={position}
+        disabled={!tokens.length}
+        style={{ "--progress": `${progress}%` } as React.CSSProperties}
+        onChange={(e) => playback.jump(Number(e.target.value))}
+      />
+      <div>
+        <span>
+          {tokens.length ? (done ? tokens.length : index + 1) : 0}{" "}
+          <span className="dim">of {tokens.length} words</span>
+        </span>
+        <span>
+          {formatTime(playback.remaining)} <span className="dim">left</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ReaderSettings({ reading }: { reading: Reading }) {
+  const speedId = useId();
+  const { wpm, smart } = reading;
+
+  return (
+    <div className="reader-settings">
+      <div className="speed-controls">
+        <div>
+          <label htmlFor={speedId}>Reading pace</label>
+          <span className="speed-value">
+            {wpm}
+            <small> WPM</small>
+          </span>
+        </div>
+        <input
+          id={speedId}
+          type="range"
+          min="100"
+          max="700"
+          step="25"
+          value={wpm}
+          onChange={(e) => reading.setWpm(Number(e.target.value))}
+        />
+      </div>
+      <label className="pause-setting">
+        <span>
+          <span className="setting-title">Thoughtful pauses</span>
+          <small>Extra time for punctuation and longer words</small>
+        </span>
+        <input
+          type="checkbox"
+          role="switch"
+          checked={smart}
+          onChange={(e) => reading.setSmart(e.target.checked)}
+        />
+        <span className="switch" aria-hidden="true" />
+      </label>
+    </div>
+  );
+}
+
+function usePlayback(reading: Reading, modalOpen: boolean) {
+  const {
+    tokens,
+    index,
+    setIndex,
+    playing,
+    setPlaying,
+    wpm,
+    setWpm,
+    smart,
+    focus,
+    setFocus,
+  } = reading;
   const token = tokens[index];
-  const [before, pivot, after] = (() => {
-    const p = focusParts(token?.word || "clarity");
-    return [p.before, p.focus, p.after];
-  })();
   const done = tokens.length > 0 && index >= tokens.length;
   const position = Math.min(index, Math.max(0, tokens.length - 1));
   const section = tokens[position]?.section ?? 0;
@@ -75,9 +352,22 @@ export default function Reader({
     if (done) setIndex(0);
     setPlaying(!playing);
   }
-  function seek(direction: -1 | 1) {
+  function jump(to: number) {
     setPlaying(false);
-    setIndex(sentencePosition(tokens, position, direction));
+    setIndex(to);
+  }
+  function seek(direction: -1 | 1) {
+    jump(sentencePosition(tokens, position, direction));
+  }
+  function restart() {
+    jump(0);
+  }
+  function jumpToSection(target: number) {
+    jump(Math.max(0, tokens.findIndex((t) => t.section === target)));
+  }
+  function exitFocus() {
+    setFocus(false);
+    setPlaying(false);
   }
 
   useEffect(() => {
@@ -113,312 +403,75 @@ export default function Reader({
   }, [setPlaying]);
 
   useEffect(() => {
-    if (!focus) return;
-    const previousFocus = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    sectionRef.current?.focus();
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      previousFocus?.focus();
-    };
-  }, [focus]);
-
-  useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
-      if (focus && event.code === "Tab") {
-        const controls = [
-          ...(sectionRef.current?.querySelectorAll<HTMLElement>(
-            "button:not(:disabled), input:not(:disabled), [href]",
-          ) ?? []),
-        ].filter((el) => el.offsetParent !== null);
-        const first = controls[0],
-          last = controls[controls.length - 1];
-        if (
-          event.shiftKey &&
-          (target === first || target === sectionRef.current)
-        ) {
-          event.preventDefault();
-          last?.focus();
-        } else if (
-          !event.shiftKey &&
-          (target === last || target === sectionRef.current)
-        ) {
-          event.preventDefault();
-          first?.focus();
-        }
-      }
-      if (!modalOpen && event.code === "Escape") {
-        setFocus(false);
-        setPlaying(false);
-        return;
-      }
       if (
         modalOpen ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
         target.closest(
           "input, textarea, select, [contenteditable=true], [role=tab]",
         )
       )
         return;
-      if (event.code === "Space" && !target.closest("button")) {
-        event.preventDefault();
-        toggle();
-      }
-      if (event.code === "ArrowLeft") {
-        event.preventDefault();
-        seek(-1);
-      }
-      if (event.code === "ArrowRight") {
-        event.preventDefault();
-        seek(1);
-      }
-      if (event.code === "ArrowUp") {
-        event.preventDefault();
-        setWpm((v) => Math.min(700, v + 25));
-      }
-      if (event.code === "ArrowDown") {
-        event.preventDefault();
-        setWpm((v) => Math.max(100, v - 25));
-      }
+      const actions: Record<string, () => void> = {
+        ArrowLeft: () => seek(-1),
+        ArrowRight: () => seek(1),
+        ArrowUp: () => setWpm((v) => Math.min(700, v + 25)),
+        ArrowDown: () => setWpm((v) => Math.max(100, v - 25)),
+        KeyF: () => (focus ? exitFocus() : tokens.length && setFocus(true)),
+      };
+      if (event.code === "Space" && !target.closest("button"))
+        actions.Space = toggle;
+      const action = actions[event.code];
+      if (!action) return;
+      event.preventDefault();
+      action();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  return (
-    <section
-      ref={sectionRef}
-      tabIndex={focus ? -1 : undefined}
-      role={focus ? "dialog" : undefined}
-      aria-modal={focus || undefined}
-      className={`reader-column ${focus ? "is-focused" : ""}`}
-      aria-label="One word reader"
-    >
-      {focus && (
-        <div className="focus-toolbar">
-          <span className="brand">
-            <i className="brand-mark">
-              <b />
-              <b />
-              <b />
-            </i>
-            suprima
-            <span className="focus-brand-label">Your moment of focus</span>
-          </span>
-          <button
-            className="subtle-button"
-            onClick={() => {
-              setFocus(false);
-              setPlaying(false);
-            }}
-          >
-            <ArrowLeft size={16} />
-            Back to workspace
-            <X size={16} />
-          </button>
-        </div>
-      )}
-      <div className="reader-card">
-        <div className="reader-top">
-          <span className="eyebrow">
-            <span className="live-dot" />
-            THE FOCUS READER
-          </span>
-          <button
-            className="icon-button light"
-            aria-label={focus ? "Exit focus view" : "Enter focus view"}
-            title={focus ? "Exit focus view" : "Enter focus view"}
-            onClick={() => setFocus(!focus)}
-          >
-            {focus ? <X size={17} /> : <Expand size={17} />}
-          </button>
-        </div>
-        <div className="reading-label">
-          {brief
-            ? `${String(section + 1).padStart(2, "0")} / ${String(brief.sections.length).padStart(2, "0")} · ${brief.sections[section]?.heading}`
-            : "A little space for your next big idea"}
-        </div>
-        <div className="word-stage" aria-hidden="true">
-          <span className="anchor-notch top" />
-          <div
-            className="reading-word"
-            style={{
-              fontSize:
-                token && [...token.word].length > 18
-                  ? "clamp(20px, 2.8vw, 35px)"
-                  : undefined,
-            }}
-          >
-            <span className="word-before">{before}</span>
-            <span className="word-pivot">{pivot}</span>
-            <span className="word-after">{after}</span>
-          </div>
-          <span className="anchor-notch bottom" />
-        </div>
-        <div className="reader-caption" role="status">
-          {done ? (
-            <>
-              <Check size={14} /> Reading complete. Let the ideas settle.
-            </>
-          ) : playing ? (
-            "One word. One moment. Keep going."
-          ) : kind === "example" && brief ? (
-            "A prepared example. Press play to try it."
-          ) : (
-            "Settle in. Start when you're ready."
-          )}
-        </div>
-        <div className="playback-controls">
-          <button
-            className="icon-button light"
-            aria-label="Restart reading"
-            title="Restart reading"
-            disabled={!tokens.length}
-            onClick={() => {
-              setIndex(0);
-              setPlaying(false);
-            }}
-          >
-            <RotateCcw size={17} />
-          </button>
-          <button
-            className="icon-button light"
-            aria-label="Previous sentence"
-            title="Previous sentence (←)"
-            disabled={!tokens.length}
-            onClick={() => seek(-1)}
-          >
-            <SkipBack size={20} />
-          </button>
-          <button
-            className="play-button"
-            aria-label={
-              playing ? "Pause reading" : done ? "Read again" : "Play reading"
-            }
-            disabled={!tokens.length}
-            onClick={toggle}
-          >
-            {playing ? (
-              <Pause size={23} fill="currentColor" />
-            ) : (
-              <Play size={23} fill="currentColor" />
-            )}
-          </button>
-          <button
-            className="icon-button light"
-            aria-label="Next sentence"
-            title="Next sentence (→)"
-            disabled={!tokens.length}
-            onClick={() => seek(1)}
-          >
-            <SkipForward size={20} />
-          </button>
-          <span className="controls-spacer" />
-        </div>
-        <div className="reading-progress">
-          <input
-            aria-label="Reading position"
-            type="range"
-            min="0"
-            max={Math.max(1, tokens.length - 1)}
-            value={position}
-            disabled={!tokens.length}
-            style={
-              {
-                "--progress": `${tokens.length ? (done ? 100 : (position / Math.max(1, tokens.length - 1)) * 100) : 0}%`,
-              } as React.CSSProperties
-            }
-            onChange={(e) => {
-              setIndex(Number(e.target.value));
-              setPlaying(false);
-            }}
-          />
-          <div>
-            <span>
-              {tokens.length ? (done ? tokens.length : index + 1) : 0}{" "}
-              <span className="dim">of {tokens.length} words</span>
-            </span>
-            <span>
-              {formatTime(remaining)} <span className="dim">left</span>
-            </span>
-          </div>
-        </div>
-        <div className="speed-controls">
-          <div>
-            <label htmlFor="speed">Reading pace</label>
-            <span className="speed-value">
-              {wpm}
-              <small> WPM</small>
-            </span>
-          </div>
-          <input
-            id="speed"
-            type="range"
-            min="100"
-            max="700"
-            step="25"
-            value={wpm}
-            onChange={(e) => setWpm(Number(e.target.value))}
-          />
-          <div className="speed-labels">
-            <span>Take it slow</span>
-            <span>Find your flow</span>
-          </div>
-        </div>
-        <label className="pause-setting">
-          <span>
-            <span className="setting-title">Thoughtful pauses</span>
-            <small>Extra time for punctuation and longer words</small>
-          </span>
-          <input
-            type="checkbox"
-            role="switch"
-            checked={smart}
-            onChange={(e) => setSmart(e.target.checked)}
-          />
-          <span className="switch" aria-hidden="true" />
-        </label>
-      </div>
-      <div className="shortcut-hint">
-        <kbd>space</kbd> play / pause <span>·</span> <kbd>←</kbd>
-        <kbd>→</kbd> move by sentence
-      </div>
-      {brief && (
-        <div className="reading-path">
-          <div className="path-heading">
-            <h3>Your reading path</h3>
-            <span>{brief.sections.length} ideas</span>
-          </div>
-          {brief.sections.map((s, i) => (
-            <button
-              className={`path-item ${i === section ? "active" : ""}`}
-              key={i}
-              onClick={() => {
-                setPlaying(false);
-                setIndex(tokens.findIndex((t) => t.section === i));
-              }}
-            >
-              <span className="path-number">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span>{s.heading}</span>
-              <span className="path-duration">
-                {formatTime(
-                  tokens
-                    .filter((t) => t.section === i)
-                    .reduce((ms, t) => ms + wordDelay(t, wpm, smart), 0),
-                )}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-      {focus && (
-        <div className="focus-bottom">
-          There is no rush. Understanding sets the pace.
-        </div>
-      )}
-    </section>
-  );
+  return {
+    token,
+    done,
+    position,
+    section,
+    remaining,
+    toggle,
+    jump,
+    seek,
+    restart,
+    jumpToSection,
+    exitFocus,
+  };
+}
+
+function useIdle(isActive: boolean, delay = 2200) {
+  const [isIdle, setIsIdle] = useState(false);
+
+  useEffect(() => {
+    if (!isActive) return;
+    let timer = window.setTimeout(() => setIsIdle(true), delay);
+    function wake() {
+      setIsIdle(false);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setIsIdle(true), delay);
+    }
+    window.addEventListener("pointermove", wake);
+    window.addEventListener("keydown", wake);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pointermove", wake);
+      window.removeEventListener("keydown", wake);
+      setIsIdle(false);
+    };
+  }, [isActive, delay]);
+
+  return isActive && isIdle;
+}
+
+function pad(value: number) {
+  return String(value).padStart(2, "0");
 }

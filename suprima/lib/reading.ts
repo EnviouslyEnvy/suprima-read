@@ -1,4 +1,5 @@
 export type Detail = "quick" | "balanced" | "deep";
+export type Kind = "example" | "ai" | "original";
 export type Section = {
   heading: string;
   text: string;

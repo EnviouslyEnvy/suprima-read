@@ -1,4 +1,4 @@
-import Workspace from "@/components/workspace";
-export default function Home() {
-  return <Workspace />;
+import Home from "@/components/home";
+export default function HomePage() {
+  return <Home />;
 }
