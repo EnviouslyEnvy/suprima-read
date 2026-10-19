@@ -10,8 +10,10 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
-import { details, MAX_SOURCE_LENGTH } from "@/lib/reading";
+import { depthLabel, pick } from "@/lib/flavor";
+import { MAX_SOURCE_LENGTH } from "@/lib/reading";
 import type { Reading } from "./use-reading";
+import { useFlavor } from "./use-flavor";
 
 export default function SourceEditor({ reading }: { reading: Reading }) {
   const { tab, setTab, brief, busy } = reading;
@@ -82,6 +84,7 @@ export default function SourceEditor({ reading }: { reading: Reading }) {
 }
 
 function SourcePanel({ reading }: { reading: Reading }) {
+  const { flavor } = useFlavor();
   const { source, title, busy } = reading;
   const uploadRef = useRef<HTMLInputElement>(null);
 
@@ -98,7 +101,7 @@ function SourcePanel({ reading }: { reading: Reading }) {
       <input
         id="reading-title"
         className="title-input"
-        placeholder="Give this reading a title…"
+        placeholder={pick(flavor, "Title", "Give this reading a title…")}
         maxLength={160}
         value={title}
         disabled={busy}
@@ -110,9 +113,11 @@ function SourcePanel({ reading }: { reading: Reading }) {
       <textarea
         id="source-text"
         className="source-input"
-        placeholder={
-          "Paste something you'd like to understand. A long article, a chapter, a research note…\n\nWe'll help you find the thread."
-        }
+        placeholder={pick(
+          flavor,
+          "Paste text.",
+          "Paste something you'd like to understand. A long article, a chapter, a research note…\n\nWe'll help you find the thread.",
+        )}
         value={source}
         maxLength={MAX_SOURCE_LENGTH}
         disabled={busy}
@@ -150,6 +155,7 @@ function SourcePanel({ reading }: { reading: Reading }) {
 }
 
 function BriefPanel({ reading }: { reading: Reading }) {
+  const { flavor } = useFlavor();
   const { brief, kind, preparedDetail } = reading;
 
   return (
@@ -167,7 +173,7 @@ function BriefPanel({ reading }: { reading: Reading }) {
                 ? "Prepared example"
                 : kind === "original"
                   ? "Original wording"
-                  : details.find((d) => d.id === preparedDetail)?.label}
+                  : depthLabel(preparedDetail, flavor)}
             </span>
             <button
               className="icon-button"
@@ -203,7 +209,7 @@ function BriefPanel({ reading }: { reading: Reading }) {
           ))}
           {brief.takeaways.length > 0 && (
             <div className="takeaways">
-              <h4>The ideas to keep</h4>
+              <h4>{pick(flavor, "Takeaways", "The ideas to keep")}</h4>
               {brief.takeaways.map((t, i) => (
                 <p key={i}>
                   <Check size={14} />
@@ -216,8 +222,10 @@ function BriefPanel({ reading }: { reading: Reading }) {
       ) : (
         <div className="brief-empty">
           <Sparkles size={28} strokeWidth={1.2} />
-          <h3>A clearer version is next.</h3>
-          <p>Add your text, choose a depth, and prepare your reading.</p>
+          <h3>{pick(flavor, "No brief yet.", "A clearer version is next.")}</h3>
+          {flavor && (
+            <p>Add your text, choose a depth, and prepare your reading.</p>
+          )}
           <button className="text-button" onClick={() => reading.setTab("source")}>
             Back to original text
             <ArrowRight size={14} />

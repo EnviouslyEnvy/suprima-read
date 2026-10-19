@@ -8,8 +8,10 @@ import Reader from "./reader";
 import Sidebar, { type View } from "./sidebar";
 import SourceEditor from "./source-editor";
 import { HelpDialog, Notices, ReadingDialogs } from "./overlays";
+import { FlavorProvider, FlavorToggle, useFlavor } from "./use-flavor";
 import { useLibrary } from "./use-library";
 import { useReading } from "./use-reading";
+import { workspaceTitle } from "@/lib/flavor";
 import {
   loadSidebarCollapsed,
   storeSidebarCollapsed,
@@ -18,7 +20,16 @@ import {
 import { formatTime } from "@/lib/reading";
 
 export default function Workspace() {
+  return (
+    <FlavorProvider defaultOn={false}>
+      <WorkspaceScreen />
+    </FlavorProvider>
+  );
+}
+
+function WorkspaceScreen() {
   const reading = useReading({ hasExample: false });
+  const { flavor } = useFlavor();
   const library = useLibrary(reading);
   const [view, setView] = useState<View>("workspace");
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -32,6 +43,14 @@ export default function Workspace() {
     if (handoff) restore(handoff);
     // A handoff from the home page must be consumed once, on mount only.
   }, []);
+
+  useEffect(() => {
+    const article =
+      view === "library"
+        ? "Reading library"
+        : reading.title.trim() || reading.brief?.title.trim() || "Workspace";
+    document.title = workspaceTitle(article);
+  }, [view, reading.title, reading.brief?.title]);
 
   function changeView(next: View) {
     setView(next);
@@ -58,23 +77,30 @@ export default function Workspace() {
       <div className="main-shell">
         <header className="topbar">
           <div className="breadcrumb">
-            <span>My space</span>
-            <ChevronRight size={13} />
+            {flavor && (
+              <>
+                <span>My space</span>
+                <ChevronRight size={13} />
+              </>
+            )}
             <strong>
               {view === "workspace" ? "Workspace" : "Reading library"}
             </strong>
           </div>
-          {view === "workspace" && reading.brief && (
-            <div className="reading-stats">
-              <span>
-                <Clock3 size={13} />
-                {formatTime(reading.readingTime)} reading
-              </span>
-              {reading.reduction > 0 && (
-                <span>{reading.reduction}% fewer words</span>
-              )}
-            </div>
-          )}
+          <div className="topbar-end">
+            {view === "workspace" && reading.brief && (
+              <div className="reading-stats">
+                <span>
+                  <Clock3 size={13} />
+                  {formatTime(reading.readingTime)} reading
+                </span>
+                {reading.reduction > 0 && (
+                  <span>{reading.reduction}% fewer words</span>
+                )}
+              </div>
+            )}
+            <FlavorToggle />
+          </div>
         </header>
         <main id="main-content" className="main-content app-content">
           <Notices reading={reading} />
@@ -99,7 +125,7 @@ export default function Workspace() {
                 >
                   <div className="column-heading">
                     <h2 id="depth-heading">Choose your depth</h2>
-                    <span>Keep what matters</span>
+                    {flavor && <span>Keep what matters</span>}
                   </div>
                   <DepthPanel reading={reading} isStacked />
                 </section>

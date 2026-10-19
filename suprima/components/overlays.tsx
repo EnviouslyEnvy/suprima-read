@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { ArrowRight, Check, FileText, X } from "lucide-react";
+import { pick } from "@/lib/flavor";
 import Dialog from "./dialog";
 import type { Reading } from "./use-reading";
+import { useFlavor } from "./use-flavor";
 
 export function Notices({ reading }: { reading: Reading }) {
   const { error, notice } = reading;
@@ -51,32 +53,26 @@ export function ReadingDialogs({ reading }: { reading: Reading }) {
 }
 
 export function HelpDialog({ onClose }: { onClose: () => void }) {
+  const { flavor } = useFlavor();
+
   return (
-    <Dialog title="A little guidance" onClose={onClose}>
+    <Dialog title="Help" onClose={onClose}>
       <div className="help-content">
-        <p className="dialog-intro">
-          Make a long read feel a little more approachable.
-        </p>
+        {flavor && (
+          <p className="dialog-intro">
+            Make a long read feel a little more approachable.
+          </p>
+        )}
         <ol>
-          <li>
-            <strong>Bring your words.</strong> Paste text or upload a .txt or
-            .md file.
-          </li>
-          <li>
-            <strong>Choose your depth.</strong> Keep the essentials, key
-            context, or more nuance.
-          </li>
-          <li>
-            <strong>Review the brief.</strong> Check the wording and open
-            source passages for context.
-          </li>
-          <li>
-            <strong>Find your pace.</strong> Start slowly. Pause or revisit any
-            sentence when needed.
-          </li>
+          {helpSteps.map(([label, text]) => (
+            <li key={text}>
+              {flavor && <strong>{label} </strong>}
+              {text}
+            </li>
+          ))}
         </ol>
         <div className="help-shortcuts">
-          <h3>A few useful shortcuts</h3>
+          <h3>{pick(flavor, "Shortcuts", "A few useful shortcuts")}</h3>
           {shortcuts.map(([keys, label]) => (
             <p key={label}>
               <span>
@@ -147,9 +143,13 @@ function PasswordDialog({
   onSubmit: (password: string) => void;
 }) {
   const [password, setPassword] = useState("");
+  const { flavor } = useFlavor();
 
   return (
-    <Dialog title="Your reading-space password" onClose={onClose}>
+    <Dialog
+      title={pick(flavor, "Password", "Your reading-space password")}
+      onClose={onClose}
+    >
       <form
         className="password-form"
         onSubmit={(event) => {
@@ -178,6 +178,22 @@ function PasswordDialog({
     </Dialog>
   );
 }
+
+const helpSteps: [string, string][] = [
+  ["Bring your words.", "Paste text or upload a .txt or .md file."],
+  [
+    "Choose your depth.",
+    "Keep the essentials, key context, or more nuance.",
+  ],
+  [
+    "Review the brief.",
+    "Check the wording and open source passages for context.",
+  ],
+  [
+    "Find your pace.",
+    "Start slowly. Pause or revisit any sentence when needed.",
+  ],
+];
 
 const shortcuts: [string[], string][] = [
   [["space"], "Play or pause"],

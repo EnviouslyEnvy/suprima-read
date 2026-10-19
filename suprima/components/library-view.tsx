@@ -7,8 +7,10 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
+import { pick } from "@/lib/flavor";
 import { LIBRARY_LIMIT, type Saved } from "@/lib/library";
 import { wordCount } from "@/lib/reading";
+import { useFlavor } from "./use-flavor";
 
 export default function LibraryView({
   library,
@@ -21,11 +23,17 @@ export default function LibraryView({
   onDelete: (id: string) => void;
   onBack: () => void;
 }) {
+  const { flavor } = useFlavor();
+
   return (
     <section className="library-section" aria-labelledby="library-heading">
       <div className="view-heading">
         <h1 id="library-heading">Reading library</h1>
-        <p>Return to an idea, pick up your pace, or start where you left off.</p>
+        {flavor && (
+          <p>
+            Return to an idea, pick up your pace, or start where you left off.
+          </p>
+        )}
       </div>
       <div className="library-top">
         <span>
@@ -39,7 +47,13 @@ export default function LibraryView({
       {library.length === 0 ? (
         <div className="library-empty">
           <Bookmark size={34} strokeWidth={1.2} />
-          <h2>A home for your next good idea.</h2>
+          <h2>
+            {pick(
+              flavor,
+              "No saved readings.",
+              "A home for your next good idea.",
+            )}
+          </h2>
           <p>Save a reading from your workspace to return to it here.</p>
           <button className="primary-button" onClick={onBack}>
             Back to workspace

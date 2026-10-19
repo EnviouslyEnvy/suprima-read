@@ -10,8 +10,10 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { depthLabel, pick } from "@/lib/flavor";
 import { details, type Detail } from "@/lib/reading";
 import type { Reading } from "./use-reading";
+import { useFlavor } from "./use-flavor";
 
 export default function DepthPanel({
   reading,
@@ -20,6 +22,7 @@ export default function DepthPanel({
   reading: Reading;
   isStacked?: boolean;
 }) {
+  const { flavor } = useFlavor();
   const { busy, detail, source } = reading;
 
   return (
@@ -39,7 +42,7 @@ export default function DepthPanel({
           >
             <span className="depth-icon">{depthIcons[d.id]}</span>
             <span className="depth-text">
-              <strong>{d.label}</strong>
+              <strong>{depthLabel(d.id, flavor)}</strong>
               <small>{d.description}</small>
             </span>
           </button>
@@ -55,7 +58,11 @@ export default function DepthPanel({
         ) : (
           <Sparkles size={18} />
         )}
-        <span>{busy ? "Finding the thread…" : "Prepare my reading"}</span>
+        <span>
+          {busy
+            ? pick(flavor, "Preparing…", "Finding the thread…")
+            : pick(flavor, "Prepare brief", "Prepare my reading")}
+        </span>
         {!busy && <ArrowRight size={18} />}
       </button>
       {busy ? (
@@ -64,7 +71,7 @@ export default function DepthPanel({
         </button>
       ) : (
         <div className="preparation-note">
-          <span>Or skip the brief and keep every word.</span>
+          {flavor && <span>Or skip the brief and keep every word.</span>}
           <button
             className="text-button"
             onClick={reading.readOriginal}

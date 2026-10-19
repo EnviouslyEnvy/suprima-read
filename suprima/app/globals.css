@@ -217,6 +217,11 @@ p {
   justify-content: space-between;
   padding: 0 46px;
 }
+.topbar-end {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
 .breadcrumb {
   display: flex;
   align-items: center;
@@ -265,6 +270,9 @@ p {
   font-weight: 400;
   line-height: 1.07;
   margin-top: 17px;
+}
+.page-heading.is-plain h1 {
+  margin-top: 0;
 }
 .page-heading h1 em {
   font-weight: 400;
@@ -522,7 +530,7 @@ p {
   font-size: 12px;
   font-weight: 600;
 }
-.depth-heading > span:last-child {
+.depth-heading .depth-note {
   font-size: 8.5px;
   color: #a0a78f;
   margin-left: auto;
@@ -604,6 +612,7 @@ p {
 }
 .preparation-note .text-button {
   font-size: 8px;
+  margin-left: auto;
 }
 .privacy-note {
   font-size: 7.5px;
@@ -1068,6 +1077,7 @@ kbd {
   display: flex;
   align-items: center;
   gap: 15px;
+  margin-left: auto;
 }
 .reading-stats > span {
   display: flex;
@@ -1470,7 +1480,7 @@ kbd {
   .editor-tabs svg {
     width: 13px;
   }
-  .depth-heading > span:last-child {
+  .depth-heading .depth-note {
     display: none;
   }
   .editor-footer {
@@ -1613,7 +1623,7 @@ kbd {
     font-size: 8px;
     padding: 13px 18px;
   }
-  .depth-heading > span:last-child {
+  .depth-heading .depth-note {
     display: block;
   }
   .depth-option strong {
@@ -1793,7 +1803,7 @@ kbd {
   .depth-heading h2 {
     font-size: 12px;
   }
-  .depth-heading > span:last-child {
+  .depth-heading .depth-note {
     font-size: 7.5px;
   }
   .depth-options {
@@ -1962,7 +1972,7 @@ kbd {
 .depth-heading h2 {
   font-size: 13px;
 }
-.depth-heading > span:last-child {
+.depth-heading .depth-note {
   font-size: 9px;
   color: #7a8c68;
 }
@@ -2119,7 +2129,7 @@ kbd {
   .depth-option small {
     font-size: 8px;
   }
-  .depth-heading > span:last-child {
+  .depth-heading .depth-note {
     font-size: 8px;
   }
   .preparation-note,
@@ -2600,6 +2610,32 @@ html:has(.focus-screen[open]) {
 .home-nav .primary-button {
   font-size: 12px;
   gap: 8px;
+}
+.flavor-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #777f72;
+  font-size: 12px;
+  cursor: pointer;
+}
+.flavor-toggle .switch {
+  background: #d5dccb;
+}
+.flavor-toggle .switch::after {
+  background: #f7f8f3;
+}
+.flavor-toggle input:checked + .switch {
+  background: #6d8a62;
+}
+.flavor-toggle input:checked + .switch::after {
+  background: #f3f6eb;
+  transform: translateX(12px);
+}
+.flavor-toggle input:focus-visible + .switch {
+  outline: 2px solid #6d8a62;
+  outline-offset: 3px;
 }
 
 @media (max-width: 1190px) {

@@ -11,6 +11,7 @@ import {
   Plus,
 } from "lucide-react";
 import Brand from "./brand";
+import { useFlavor } from "./use-flavor";
 
 export type View = "workspace" | "library";
 
@@ -31,6 +32,7 @@ export default function Sidebar({
   onView: (view: View) => void;
   onHelp: () => void;
 }) {
+  const { flavor } = useFlavor();
   const label = (text: string) => (isCollapsed ? text : undefined);
 
   return (
@@ -47,7 +49,7 @@ export default function Sidebar({
         <Plus size={17} />
         <span className="nav-text">New reading</span>
       </button>
-      <div className="nav-label">YOUR SPACE</div>
+      {flavor && <div className="nav-label">YOUR SPACE</div>}
       <nav aria-label="Main navigation">
         {navItems.map(({ id, text, icon }) => (
           <button
@@ -70,11 +72,11 @@ export default function Sidebar({
         <button
           className="nav-item"
           onClick={onHelp}
-          aria-label={label("A little guidance")}
-          title={label("A little guidance")}
+          aria-label={label("Help")}
+          title={label("Help")}
         >
           <CircleHelp size={18} />
-          <span className="nav-text">A little guidance</span>
+          <span className="nav-text">Help</span>
         </button>
         <Link
           className="nav-item"

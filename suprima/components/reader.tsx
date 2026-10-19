@@ -13,6 +13,7 @@ import {
   SkipForward,
   X,
 } from "lucide-react";
+import { pick } from "@/lib/flavor";
 import {
   focusParts,
   formatTime,
@@ -20,6 +21,7 @@ import {
   wordDelay,
 } from "@/lib/reading";
 import type { Reading } from "./use-reading";
+import { useFlavor } from "./use-flavor";
 
 type Playback = ReturnType<typeof usePlayback>;
 type PartProps = { reading: Reading; playback: Playback };
@@ -36,6 +38,7 @@ export default function Reader({
   onSave?: () => void;
 }) {
   const playback = usePlayback(reading, modalOpen);
+  const { flavor } = useFlavor();
   const { brief, tokens, focus } = reading;
 
   return (
@@ -44,7 +47,7 @@ export default function Reader({
         <div className="reader-top">
           <span className="eyebrow">
             <span className="live-dot" />
-            THE FOCUS READER
+            {pick(flavor, "Reader", "THE FOCUS READER")}
           </span>
           <div className="reader-actions">
             {onSave && brief && (
@@ -73,14 +76,23 @@ export default function Reader({
         <div className="reader-caption" role="status">
           {playback.done ? (
             <>
-              <Check size={14} /> Reading complete. Let the ideas settle.
+              <Check size={14} />{" "}
+              {pick(
+                flavor,
+                "Reading complete.",
+                "Reading complete. Let the ideas settle.",
+              )}
             </>
           ) : reading.playing ? (
-            "One word. One moment. Keep going."
+            flavor ? "One word. One moment. Keep going." : null
           ) : reading.kind === "example" && brief ? (
-            "A prepared example. Press play to try it."
+            pick(
+              flavor,
+              "Example. Press play.",
+              "A prepared example. Press play to try it.",
+            )
           ) : brief ? (
-            "Settle in. Start when you're ready."
+            flavor ? "Settle in. Start when you're ready." : null
           ) : (
             "Prepare a brief, or read the original, to begin."
           )}
@@ -102,6 +114,7 @@ export default function Reader({
 
 function FocusScreen({ reading, playback }: PartProps) {
   const ref = useRef<HTMLDialogElement>(null);
+  const { flavor } = useFlavor();
   const isIdle = useIdle(reading.playing);
 
   useEffect(() => {
@@ -127,7 +140,12 @@ function FocusScreen({ reading, playback }: PartProps) {
       <WordStage word={playback.token?.word} />
       {playback.done && (
         <p className="focus-done" role="status">
-          <Check size={15} /> Reading complete. Let the ideas settle.
+          <Check size={15} />{" "}
+          {pick(
+            flavor,
+            "Reading complete.",
+            "Reading complete. Let the ideas settle.",
+          )}
         </p>
       )}
       <header className="focus-chrome focus-header">
@@ -148,10 +166,13 @@ function FocusScreen({ reading, playback }: PartProps) {
 }
 
 function SectionPicker({ reading, playback }: PartProps) {
+  const { flavor } = useFlavor();
   const { brief } = reading;
   if (!brief)
     return (
-      <div className="reading-label">A little space for your next big idea</div>
+      <div className="reading-label">
+        {pick(flavor, "No reading", "A little space for your next big idea")}
+      </div>
     );
   const total = pad(brief.sections.length);
 
@@ -283,6 +304,7 @@ function ReadingProgress({ reading, playback }: PartProps) {
 
 function ReaderSettings({ reading }: { reading: Reading }) {
   const speedId = useId();
+  const { flavor } = useFlavor();
   const { wpm, smart } = reading;
 
   return (
@@ -307,7 +329,9 @@ function ReaderSettings({ reading }: { reading: Reading }) {
       </div>
       <label className="pause-setting">
         <span>
-          <span className="setting-title">Thoughtful pauses</span>
+          <span className="setting-title">
+            {pick(flavor, "Pause on punctuation", "Thoughtful pauses")}
+          </span>
           <small>Extra time for punctuation and longer words</small>
         </span>
         <input
